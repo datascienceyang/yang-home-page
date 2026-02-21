@@ -6,7 +6,7 @@ Undergraduate at School of Data Science, Fudan University.
 
 #### Contact
 
-Email: 25300980053@m.fudan.edu.cn
+Email: 25300980053@m.fudan.edu.cn \
 Wechat: yyz20072007
 
 #### Education

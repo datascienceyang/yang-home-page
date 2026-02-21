@@ -106,19 +106,290 @@
     </nav>
 
     <!-- Top Section -->
-    <section class="top-section" style="background-image: url('static/assets/img/background.jpeg');">
-        <div class="top-section-content">
-            <div class="container px-5">
-                <h2 id="top-section-bg-text" class="text-white display-3 lh-1 font-alt"></h2>
-            </div>
-        </div>
-    </section>
+    <!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Generative Art - 小星系</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        /* 强制白底，不受系统深色模式影响 */
+        html, body {
+            color-scheme: light; /* 禁用深色模式适配 */
+            background: #ffffff !important;
+        }
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            overflow-x: hidden; /* 仅隐藏横向滚动 */
+            overflow-y: auto;   /* 纵向允许滚动（小屏幕） */
+        }
+        main {
+            width: 100%;
+            max-width: 1080px; /* 限制最大宽度，防止过度拉伸 */
+            padding: 20px;
+            margin: 0 auto;
+        }
+        #canvas-container {
+            width: 100%;
+            height: auto;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.08);
+            border-radius: 8px; /* 轻微美化，可选 */
+        }
+        /* 适配超小屏幕 */
+        @media (max-width: 480px) {
+            main {
+                padding: 10px;
+            }
+            #canvas-container {
+                box-shadow: 0 5px 20px rgba(0, 0, 0, 0.05);
+            }
+        }
+    </style>
+</head>
+<body>
+    <main>
+        <div id="canvas-container"></div>
+    </main>
+
+    <script>
+        // ==========================
+        // 全局变量
+        // ==========================
+        let movers  = [];
+        // 精选配色：红、黄、蓝、高定深灰、淡雅绿
+        let colors  = ['#ee2642', '#eda037', '#388da4', '#363A42', '#6B6599']; 
+        let circles = [];
+        
+        // 布局参数
+        const COLS = 9;
+        const ROWS = 3;
+        const TOTAL_CELLS = COLS * ROWS; // 27
+        const MAX_CANVAS_WIDTH = 1080;   // 画布最大宽度
+        const MAX_CELL_WIDTH = 120;      // 单元格最大宽度（防止图案过度扩大）
+
+        // ==========================
+        // 初始化阶段
+        // ==========================
+        function setup() {
+            // 1. 画布响应式设置
+            let canvasWidth = Math.min(windowWidth - 40, MAX_CANVAS_WIDTH); // 留边距
+            let canvasHeight = canvasWidth / 3; // 保持3:1比例
+            
+            // 超小屏幕强制最小高度
+            if (canvasHeight < 120) {
+                canvasHeight = 120;
+                canvasWidth = canvasHeight * 3;
+            }
+            
+            let canvas = createCanvas(canvasWidth, canvasHeight);
+            canvas.parent('canvas-container');
+
+            // 2. 生成符合约束的网格布局
+            let grid = generateValidGrid();
+            
+            // 3. 根据网格生成对象（限制单元格最大尺寸）
+            const baseCellW = width / COLS;
+            const baseCellH = height / ROWS;
+            // 限制单元格最大宽度，防止图案过度扩大
+            const cellW = Math.min(baseCellW, MAX_CELL_WIDTH);
+            const cellH = Math.min(baseCellH, MAX_CELL_WIDTH / 3); // 保持3:1比例
+
+            for (let i = 0; i < COLS; i++) {
+                for (let j = 0; j < ROWS; j++) {
+                    // 计算单元格中心位置（适配缩放后的尺寸）
+                    let x = (i * baseCellW) + (baseCellW / 2);
+                    let y = (j * baseCellH) + (baseCellH / 2);
+                    // 限制直径最大值，防止图案过大
+                    let d = random(0.5, 1) * Math.min(cellW, 120);
+                    
+                    // 获取分配好的颜色索引
+                    let colorIndex = grid[i][j];
+                    let col = colors[colorIndex];
+
+                    // 生成静态大圆（限制最大直径）
+                    circles.push({ 
+                        x: x, 
+                        y: y, 
+                        d: Math.min(d * 0.7, 84), // 最大直径84px (120*0.7)
+                        c: col 
+                    });
+
+                    // 生成小飞船 (1或2个)
+                    let num = int(random(1, 3));
+                    for (let k = 0; k < num; k++) {
+                        movers.push(new Mover(
+                            x, 
+                            y, 
+                            Math.min(d * 0.5, 60), // 飞船最大半径60px
+                            col
+                        ));
+                    }
+                }
+            }
+        }
+
+        // ==========================
+        // 布局生成器 (洗牌算法)
+        // ==========================
+        function generateValidGrid() {
+            while (true) {
+                // 1. 构建颜色池
+                let pool = [];
+                
+                // 步骤A: 确保每种颜色至少4个 (5种颜色 * 4 = 20个)
+                for (let i = 0; i < colors.length; i++) {
+                    for (let k = 0; k < 4; k++) {
+                        pool.push(i);
+                    }
+                }
+                
+                // 步骤B: 填充剩余的 7 个位置 (27 - 20 = 7)
+                for (let k = 0; k < (TOTAL_CELLS - 20); k++) {
+                    pool.push(int(random(colors.length)));
+                }
+
+                // 步骤C: 随机打乱
+                for (let i = pool.length - 1; i > 0; i--) {
+                    let j = int(random(i + 1));
+                    [pool[i], pool[j]] = [pool[j], pool[i]];
+                }
+
+                // 步骤D: 映射到网格并验证约束
+                let grid = [];
+                let valid = true;
+                let index = 0;
+                
+                let rowCounts = []; 
+                let colCounts = []; 
+                
+                for(let i=0; i<COLS; i++) colCounts.push(new Array(colors.length).fill(0));
+                for(let j=0; j<ROWS; j++) rowCounts.push(new Array(colors.length).fill(0));
+
+                for (let i = 0; i < COLS; i++) {
+                    if(!grid[i]) grid[i] = [];
+                    for (let j = 0; j < ROWS; j++) {
+                        let colorIdx = pool[index++];
+                        
+                        if (rowCounts[j][colorIdx] >= 3) valid = false;
+                        if (colCounts[i][colorIdx] >= 2) valid = false;
+                        
+                        if (!valid) break;
+
+                        grid[i][j] = colorIdx;
+                        rowCounts[j][colorIdx]++;
+                        colCounts[i][colorIdx]++;
+                    }
+                    if (!valid) break;
+                }
+
+                if (valid) {
+                    return grid;
+                }
+            }
+        }
+
+        // ==========================
+        // 渲染循环
+        // ==========================
+        function draw() {
+            // 保持原缩放逻辑，但确保不会过度放大
+            let scaleRatio = Math.min(1, width / MAX_CANVAS_WIDTH); // 最大缩放比例1
+            translate(width / 2, height / 2);
+            scale(0.8 * scaleRatio); // 适配缩放，防止过大
+            translate(-width / 2, -height / 2);
+
+            background(255); // 强制白底渲染
+
+            noStroke();
+            for (let c of circles) {
+                fill(c.c);
+                circle(c.x, c.y, c.d);
+            }
+
+            for (let mv of movers) {
+                mv.show();
+                mv.move();
+            }
+        }
+
+        // 窗口大小调整时重新初始化
+        function windowResized() {
+            movers = [];
+            circles = [];
+            resizeCanvas(
+                Math.min(windowWidth - 40, MAX_CANVAS_WIDTH), 
+                Math.min(windowWidth - 40, MAX_CANVAS_WIDTH) / 3
+            );
+            setup();
+        }
+
+        // ==========================
+        // 小飞船类 (保持原设计)
+        // ==========================
+        class Mover {
+            constructor(x, y, r, parentColor) {
+                this.x = x;
+                this.y = y;
+                this.r = r;
+                this.cs0 = r * 0.2;   // 尺寸减小一半
+                this.cs  = this.cs0;
+                this.t = random(100);
+                this.off = 0;
+                
+                // 速度调整：基准减半，最大不变
+                this.tStep = random(0.005, 0.05); 
+                
+                this.ang = random(TAU);
+                this.aStep = random(-1, 1) * 0.01;
+                
+                // 颜色避让：排除大圆颜色
+                let availableColors = colors.filter(c => c !== parentColor);
+                this.col1 = random(availableColors);
+                
+                // 确保第二色不同于第一色
+                let availableColors2 = availableColors.filter(c => c !== this.col1);
+                this.col2 = availableColors2.length > 0 ? random(availableColors2) : this.col1;
+            }
+
+            show() {
+                push();
+                translate(this.x, this.y);
+                rotate(this.ang);
+                stroke(255); 
+
+                if (this.cs0 * 0.15 < this.cs) {
+                    fill(this.col2);
+                    circle(this.off, 0, this.cs);
+                }
+
+                fill(this.col1);
+                circle(this.off, 0, this.cs * 1.8);
+                pop();
+            }
+
+            move() {
+                this.off = map(sin(this.t), -1, 1, -1, 1) * this.r;
+                this.cs = map(cos(this.t), -1, 1, this.cs0, 0);
+                this.t += this.tStep;
+                this.ang += this.aStep;
+            }
+        }
+    </script>
+</body>
+</html>
     <!-- Top Section -->
+
+    
 
     <!-- Photo -->
     <div class="container px-5">
         <div id="avatar">
-            <img class="shadow" src="static/assets/img/photo.png">
+            <img class="shadow" src="static/assets/img/My_Photo.jpg" alt="Avatar">
         </div>
     </div>
     <!-- Photo -->
