@@ -109,14 +109,17 @@
     <!-- Top Section -->
     <section class="top-section" style="position: relative; width: 100%; min-height: 400px; overflow: hidden; background: #ffffff !important;">
         <!-- p5.js画布容器（作为背景层） -->
-        <div id="canvas-bg-container" style="position: absolute; top: 72px; left: 50px; width: calc(100% - 100px); height: calc(100% - 72px); background-color: #ffffff; z-index: 0;"></div>
-        
+        <!-- 主画布容器（作为背景层） -->
+        <div id="canvas-bg-maincontainer" style="position: absolute; top: 72px; left: 0px; width: 100%; height: calc(100% - 72px); background-color: #ffffff; z-index: 0;">
+            <!-- 子画布容器（继承主容器所有参数） -->
+            <div id="canvas-bg-container" style="position: absolute; top: 0; left: 50px; width: calc(100% - 100px); height: 100%; background-color: #ffffff; z-index: 0;"></div>
+        </div>
         <!-- 原有内容层（保持层级在画布上方） -->
         <div class="top-section-content" style="position: relative; z-index: 1;">
             <div class="container px-5">
                 <!-- 直接用var(--bs-primary)指定颜色，无需依赖text-primary类 -->
                 <h2 id="top-section-bg-text" class="display-3 lh-1 font-alt" 
-                    style="color: var(--bs-primary);"></h2>
+                    style="color: var(--bs-link-hover-color);"></h2>
             </div>
         </div>
     </section>
