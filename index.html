@@ -109,7 +109,7 @@
     <!-- Top Section -->
     <section class="top-section" style="position: relative; width: 100%; min-height: 400px; overflow: hidden; background: #ffffff !important;">
         <!-- p5.js画布容器（作为背景层） -->
-        <div id="canvas-bg-container" style="position: absolute; top: 72px; left: 50px; width: calc(100% - 100px); height: calc(100% - 72px); z-index: 0;"></div>
+        <div id="canvas-bg-container" style="position: absolute; top: 72px; left: 50px; width: calc(100% - 100px); height: calc(100% - 72px); background-color: #ffffff; z-index: 0;"></div>
         
         <!-- 原有内容层（保持层级在画布上方） -->
         <div class="top-section-content" style="position: relative; z-index: 1;">
@@ -256,13 +256,6 @@
                 mv.move();
             }
 
-            // --- 新增代码开始 ---
-            // 覆盖左右各50像素区域为纯白色
-            noStroke();
-            fill(255);
-            rect(0, 0, 50, height); // 左侧遮罩
-            rect(width - 50, 0, 50, height); // 右侧遮罩
-            // --- 新增代码结束 ---
         }
 
         // 窗口缩放时同步调整画布尺寸
