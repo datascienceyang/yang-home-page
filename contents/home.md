@@ -13,5 +13,5 @@ Wechat: yyz20072007
 B.E., Data Science and Big Data Technology, Fudan University, 2025—2028. (expected)
 
 #### Research Interests
-World Models, Vision-Language-Action (VLA)
+World Models, Vision-Language-Action (VLA) (just a rough, short-term self-positioning for now.)
 
