@@ -114,7 +114,9 @@
         <!-- 原有内容层（保持层级在画布上方） -->
         <div class="top-section-content" style="position: relative; z-index: 1;">
             <div class="container px-5">
-                <h2 id="top-section-bg-text" class="text-black display-3 lh-1 font-alt"></h2>
+                <!-- 直接用var(--bs-primary)指定颜色，无需依赖text-primary类 -->
+                <h2 id="top-section-bg-text" class="display-3 lh-1 font-alt" 
+                    style="color: var(--bs-primary);"></h2>
             </div>
         </div>
     </section>
