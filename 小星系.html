@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Generative Art</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: #ffffff;
+            overflow: hidden;
+        }
+        main {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        #canvas-container {
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.08);
+        }
+    </style>
+</head>
+<body>
+    <main>
+        <div id="canvas-container"></div>
+    </main>
+
+    <script>
+        // ==========================
+        // 全局变量
+        // ==========================
+        let movers  = [];
+        // 精选配色：红、黄、蓝、高定深灰、淡雅绿
+        // 使用高定西装质感的深炭灰色替代摩卡色
+        let colors  = ['#ee2642', '#eda037', '#388da4', '#363A42', '#6B6599']; 
+        let circles = [];
+        
+        // 布局参数
+        const COLS = 9;
+        const ROWS = 3;
+        const TOTAL_CELLS = COLS * ROWS; // 27
+
+        // ==========================
+        // 初始化阶段
+        // ==========================
+        function setup() {
+            // 1. 画布设置
+            let canvasWidth = 1080;
+            let canvasHeight = canvasWidth / 3; 
+            if (windowWidth < canvasWidth) {
+                canvasWidth = windowWidth;
+                canvasHeight = canvasWidth / 3;
+            }
+            
+            let canvas = createCanvas(canvasWidth, canvasHeight);
+            canvas.parent('canvas-container');
+
+            // 2. 生成符合约束的网格布局 (使用洗牌算法)
+            let grid = generateValidGrid();
+            
+            // 3. 根据网格生成对象
+            const cellW = width / COLS;
+            const cellH = height / ROWS;
+
+            for (let i = 0; i < COLS; i++) {
+                for (let j = 0; j < ROWS; j++) {
+                    let x = i * cellW + cellW / 2;
+                    let y = j * cellH + cellH / 2;
+                    let d = random(0.5, 1) * cellW;
+                    
+                    // 获取分配好的颜色索引，转为颜色值
+                    let colorIndex = grid[i][j];
+                    let col = colors[colorIndex];
+
+                    // 生成静态大圆
+                    circles.push({ x: x, y: y, d: d * 0.7, c: col });
+
+                    // 生成小飞船 (1或2个)
+                    let num = int(random(1, 3));
+                    for (let k = 0; k < num; k++) {
+                        movers.push(new Mover(x, y, d * 0.5, col));
+                    }
+                }
+            }
+        }
+
+        // ==========================
+        // 布局生成器 (洗牌算法)
+        // ==========================
+        function generateValidGrid() {
+            while (true) {
+                // 1. 构建颜色池
+                let pool = [];
+                
+                // 步骤A: 确保每种颜色至少4个 (5种颜色 * 4 = 20个)
+                for (let i = 0; i < colors.length; i++) {
+                    for (let k = 0; k < 4; k++) {
+                        pool.push(i);
+                    }
+                }
+                
+                // 步骤B: 填充剩余的 7 个位置 (27 - 20 = 7)
+                for (let k = 0; k < (TOTAL_CELLS - 20); k++) {
+                    pool.push(int(random(colors.length)));
+                }
+
+                // 步骤C: 随机打乱
+                for (let i = pool.length - 1; i > 0; i--) {
+                    let j = int(random(i + 1));
+                    [pool[i], pool[j]] = [pool[j], pool[i]];
+                }
+
+                // 步骤D: 映射到网格并验证约束
+                let grid = [];
+                let valid = true;
+                let index = 0;
+                
+                let rowCounts = []; 
+                let colCounts = []; 
+                
+                for(let i=0; i<COLS; i++) colCounts.push(new Array(colors.length).fill(0));
+                for(let j=0; j<ROWS; j++) rowCounts.push(new Array(colors.length).fill(0));
+
+                for (let i = 0; i < COLS; i++) {
+                    if(!grid[i]) grid[i] = [];
+                    for (let j = 0; j < ROWS; j++) {
+                        let colorIdx = pool[index++];
+                        
+                        if (rowCounts[j][colorIdx] >= 3) valid = false;
+                        if (colCounts[i][colorIdx] >= 2) valid = false;
+                        
+                        if (!valid) break;
+
+                        grid[i][j] = colorIdx;
+                        rowCounts[j][colorIdx]++;
+                        colCounts[i][colorIdx]++;
+                    }
+                    if (!valid) break;
+                }
+
+                if (valid) {
+                    return grid;
+                }
+            }
+        }
+
+        // ==========================
+        // 渲染循环
+        // ==========================
+        function draw() {
+            translate(width / 2, height / 2);
+            scale(0.8);
+            translate(-width / 2, -height / 2);
+
+            background(255);
+
+            noStroke();
+            for (let c of circles) {
+                fill(c.c);
+                circle(c.x, c.y, c.d);
+            }
+
+            for (let mv of movers) {
+                mv.show();
+                mv.move();
+            }
+        }
+
+        function windowResized() {
+            movers = [];
+            circles = [];
+            setup();
+        }
+
+        // ==========================
+        // 小飞船类
+        // ==========================
+        class Mover {
+            constructor(x, y, r, parentColor) {
+                this.x = x;
+                this.y = y;
+                this.r = r;
+                this.cs0 = r * 0.2;   // 尺寸减小一半
+                this.cs  = this.cs0;
+                this.t = random(100);
+                this.off = 0;
+                
+                // 速度调整：基准减半，最大不变
+                this.tStep = random(0.005, 0.05); 
+                
+                this.ang = random(TAU);
+                this.aStep = random(-1, 1) * 0.01;
+                
+                // 颜色避让：排除大圆颜色
+                let availableColors = colors.filter(c => c !== parentColor);
+                this.col1 = random(availableColors);
+                
+                // 确保第二色不同于第一色
+                let availableColors2 = availableColors.filter(c => c !== this.col1);
+                this.col2 = availableColors2.length > 0 ? random(availableColors2) : this.col1;
+            }
+
+            show() {
+                push();
+                translate(this.x, this.y);
+                rotate(this.ang);
+                stroke(255); 
+
+                if (this.cs0 * 0.15 < this.cs) {
+                    fill(this.col2);
+                    circle(this.off, 0, this.cs);
+                }
+
+                fill(this.col1);
+                circle(this.off, 0, this.cs * 1.8);
+                pop();
+            }
+
+            move() {
+                this.off = map(sin(this.t), -1, 1, -1, 1) * this.r;
+                this.cs = map(cos(this.t), -1, 1, this.cs0, 0);
+                this.t += this.tStep;
+                this.ang += this.aStep;
+            }
+        }
+    </script>
+</body>
+</html>
